@@ -1,134 +1,138 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
 
+local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 
-local button = nil
 local enabled = false
-local bypassConnection
-local lastPos = HumanoidRootPart.Position
+local lastValidPos = HumanoidRootPart.Position
 
--- Función para detectar si el jugador está en el suelo usando raycast
+-- Detecta si el jugador está tocando el suelo con raycast
 local function isOnGround()
-    local rayOrigin = HumanoidRootPart.Position
-    local rayDirection = Vector3.new(0, -5, 0)
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {Character}
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    local origin = HumanoidRootPart.Position
+    local direction = Vector3.new(0, -5, 0)
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {Character}
+    params.FilterType = Enum.RaycastFilterType.Blacklist
 
-    local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-    if raycastResult then
-        local normal = raycastResult.Normal
-        if normal.Y > 0.7 then
-            return true
-        end
+    local result = workspace:Raycast(origin, direction, params)
+    if result and result.Normal.Y > 0.7 then
+        return true
     end
     return false
 end
 
-local function setCollision(state)
+-- Mantiene colisión normal para pies y torso
+local function maintainCollision()
     local onGround = isOnGround()
     for _, part in Character:GetDescendants() do
         if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            if state then
-                -- Si está activado atravesar paredes:
-                -- dejamos colisión solo para partes que tocan piso si estamos en suelo
-                if onGround and (part.Name == "LeftFoot" or part.Name == "RightFoot" or part.Name == "LowerTorso" or part.Name == "UpperTorso") then
-                    part.CanCollide = true
-                else
-                    part.CanCollide = false
-                end
-            else
+            if onGround and (part.Name == "LeftFoot" or part.Name == "RightFoot" or part.Name == "LowerTorso" or part.Name == "UpperTorso") then
                 part.CanCollide = true
+            else
+                part.CanCollide = false
             end
         end
     end
 end
 
-local function forcePosition(newPos)
-    local currentCFrame = HumanoidRootPart.CFrame
-    local targetCFrame = CFrame.new(newPos)
-    -- Lerp para suavizar la corrección y evitar saltos bruscos detectables por anticheat
-    HumanoidRootPart.CFrame = currentCFrame:Lerp(targetCFrame, 0.5)
+-- Mueve suavemente el HumanoidRootPart hacia adelante atravesando paredes
+local function teleportForward(step)
+    local lookVector = HumanoidRootPart.CFrame.LookVector
+    local newPos = HumanoidRootPart.Position + (lookVector * step)
+
+    -- Opcional: puedes hacer un raycast para detectar obstáculos y saltar solo si hay pared
+    -- Para simplificar, lo movemos siempre
+
+    HumanoidRootPart.CFrame = HumanoidRootPart.CFrame:Lerp(CFrame.new(newPos, newPos + lookVector), 0.5)
 end
 
-local function toggleBypass()
-    enabled = not enabled
+-- Control principal para evitar pushback
+local function onStepped()
+    pcall(function()
+        maintainCollision()
 
+        local currentPos = HumanoidRootPart.Position
+        local dist = (currentPos - lastValidPos).Magnitude
+
+        if dist > 3 then
+            -- Si nos empujaron para atrás, corregimos suavemente
+            HumanoidRootPart.CFrame = HumanoidRootPart.CFrame:Lerp(CFrame.new(lastValidPos), 0.5)
+        else
+            lastValidPos = currentPos
+            -- Avanzamos en micro saltos solo si está en el suelo
+            if isOnGround() then
+                teleportForward(0.5)
+            end
+        end
+    end)
+end
+
+-- Botón para activar/desactivar
+local button
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local function toggle()
+    enabled = not enabled
     if enabled then
         Humanoid.PlatformStand = true
         Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 
-        bypassConnection = RunService.Stepped:Connect(function()
-            pcall(function()
-                setCollision(true)
-
-                local currentPos = HumanoidRootPart.Position
-                local distanceMoved = (currentPos - lastPos).Magnitude
-
-                if distanceMoved > 3 then
-                    -- Si el servidor nos reposiciona (por ejemplo, anticheat):
-                    -- corregimos suavemente la posición para evitar ser empujados hacia atrás
-                    forcePosition(lastPos)
-                else
-                    lastPos = currentPos
-                end
-            end)
-        end)
-
-        if button then button.Text = "❌ Atravesar OFF" end
+        button.Text = "❌ Atravesar OFF"
+        connection = RunService.Stepped:Connect(onStepped)
     else
-        if bypassConnection then
-            bypassConnection:Disconnect()
-            bypassConnection = nil
+        if connection then
+            connection:Disconnect()
+            connection = nil
         end
-
         Humanoid.PlatformStand = false
         Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-        setCollision(false)
 
-        if button then button.Text = "🧱 Atravesar ON" end
+        for _, part in Character:GetDescendants() do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+
+        button.Text = "🧱 Atravesar ON"
     end
 end
 
 local function createButton()
-    local gui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("SafeZoneBypassUI")
+    local gui = PlayerGui:FindFirstChild("BypassGui")
     if gui then gui:Destroy() end
 
     gui = Instance.new("ScreenGui")
-    gui.Name = "SafeZoneBypassUI"
+    gui.Name = "BypassGui"
     gui.ResetOnSpawn = false
-    gui.Parent = LocalPlayer.PlayerGui
+    gui.Parent = PlayerGui
 
     button = Instance.new("TextButton")
     button.Size = UDim2.new(0, 180, 0, 50)
     button.Position = UDim2.new(0.05, 0, 0.8, 0)
     button.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    button.TextColor3 = Color3.new(1, 1, 1)
-    button.Text = "🧱 Atravesar ON"
+    button.TextColor3 = Color3.new(1,1,1)
     button.TextScaled = true
     button.BorderSizePixel = 0
     button.BackgroundTransparency = 0.2
+    button.Text = "🧱 Atravesar ON"
     button.Parent = gui
 
-    button.TouchTap:Connect(toggleBypass)
-    -- También conectamos MouseButton1Click para compatibilidad en PC
-    button.MouseButton1Click:Connect(toggleBypass)
+    button.TouchTap:Connect(toggle)
+    button.MouseButton1Click:Connect(toggle)
 end
 
--- Soporte respawn
+-- Respawn support
 LocalPlayer.CharacterAdded:Connect(function(char)
     Character = char
     Humanoid = char:WaitForChild("Humanoid")
     HumanoidRootPart = char:WaitForChild("HumanoidRootPart")
     wait(1)
     if enabled then
-        -- Si estaba activado, reactivar bypass
-        toggleBypass()
-        toggleBypass()
+        toggle()
+        toggle()
     end
     createButton()
 end)
