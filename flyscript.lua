@@ -3,6 +3,7 @@ local Character = Player.Character or Player.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 
 local FlySpeed = 50  -- Ajusta la velocidad de vuelo aquí
+local isFlying = false
 
 local function fly()
     local BodyVelocity = Instance.new("BodyVelocity")
@@ -40,16 +41,33 @@ local function fly()
     UserInputService.TouchBegan:Connect(onTouchBegan)
 end
 
+local function stopFly()
+    for _, child in pairs(Character:GetChildren()) do
+        if child:IsA("BodyVelocity") or child:IsA("BodyGyro") then
+            child:Destroy()
+        end
+    end
+end
+
 -- Crear un menú simple
 local ScreenGui = Instance.new("ScreenGui")
-local TextButton = Instance.new("TextButton")
-
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-TextButton.Size = UDim2.new(0, 200, 0, 50)
-TextButton.Position = UDim2.new(0.5, -100, 0.5, -25)
-TextButton.Text = "Volar"
-TextButton.Parent = ScreenGui
 
-TextButton.MouseButton1Click:Connect(function()
-    fly()
-end)
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 200, 0, 50)
+ToggleButton.Position = UDim2.new(0.5, -100, 0.5, -25)
+ToggleButton.Text = "Activar Vuelo"
+ToggleButton.Parent = ScreenGui
+
+local function toggleFly()
+    isFlying = not isFlying
+    if isFlying then
+        fly()
+        ToggleButton.Text = "Desactivar Vuelo"
+    else
+        stopFly()
+        ToggleButton.Text = "Activar Vuelo"
+    end
+end
+
+ToggleButton.MouseButton1Click:Connect(toggleFly)
