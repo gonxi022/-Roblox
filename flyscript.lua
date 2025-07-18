@@ -1,143 +1,117 @@
-local Player = game.Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+--[[ 
+  Fly + Mod Menu para KRNL en Android 
+  ---------------------------------------------------
+  - Botón UI para activar/desactivar vuelo
+  - Toque en pantalla para dirigir el vuelo
+  - Toggle adicional con salto
+--]]
 
-local UserInputService = game:GetService("UserInputService")
+-- Comprobar entorno exploit (KRNL)
+assert(type(syn)=="table" or type(KRNL)=="table" or type(identifyexecutor)=="function", 
+       "Este script debe ejecutarse en un exploit como KRNL o Synapse.")
+
+-- Servicios
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
 
+-- Referencias
+local Player = Players.LocalPlayer
+local Gui = Player:WaitForChild("PlayerGui")
+
+-- Variables de vuelo
 local FlySpeed = 50
 local isFlying = false
+local moveVector = Vector3.new()
+local BodyVelocity, BodyGyro
 
-local BodyVelocity
-local BodyGyro
-
-local moveVector = Vector3.new(0, 0, 0)
-
--- Crear UI Mod Menu
-local ScreenGui = Instance.new("ScreenGui")
+-- Crear UI
+local ScreenGui = Instance.new("ScreenGui", Gui)
 ScreenGui.Name = "FlyModMenu"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = Player:WaitForChild("PlayerGui")
 
-local Button = Instance.new("TextButton")
+local Button = Instance.new("TextButton", ScreenGui)
+Button.Size = UDim2.new(0, 0, 0, 40)
 Button.Size = UDim2.new(0, 120, 0, 40)
-Button.Position = UDim2.new(0, 20, 0, 20)
-Button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-Button.TextColor3 = Color3.new(1, 1, 1)
-Button.Text = "Vuelo: OFF"
+Button.Position = UDim2.new(0, 0, 0, 10)
+Button.BackgroundTransparency = 0.3
+Button.BackgroundColor3 = Color3.new(0,0,0)
+Button.TextColor3 = Color3.new(1,1,1)
 Button.Font = Enum.Font.SourceSansBold
-Button.TextSize = 20
-Button.Parent = ScreenGui
-Button.AutoButtonColor = true
-Button.BorderSizePixel = 2
-Button.BorderColor3 = Color3.new(1, 1, 1)
+Button.TextSize = 18
+Button.Text = "Vuelo: OFF"
 
--- Funciones para activar/desactivar vuelo
+-- Funciones de vuelo
 local function startFly()
     if isFlying then return end
     isFlying = true
+    local char = Player.Character or Player.CharacterAdded:Wait()
+    local root = char:WaitForChild("HumanoidRootPart")
+    local hum  = char:WaitForChild("Humanoid")
 
-    print("Iniciando vuelo...")
-
+    -- Crea BodyVelocity
     BodyVelocity = Instance.new("BodyVelocity")
-    BodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-    BodyVelocity.Velocity = Vector3.new(0, 0, 0)
-    BodyVelocity.Parent = HumanoidRootPart
+    BodyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
+    BodyVelocity.Velocity = Vector3.new()
+    BodyVelocity.Parent = root
 
+    -- Crea BodyGyro
     BodyGyro = Instance.new("BodyGyro")
-    BodyGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+    BodyGyro.MaxTorque = Vector3.new(1e5,1e5,1e5)
     BodyGyro.CFrame = workspace.CurrentCamera.CFrame
-    BodyGyro.Parent = HumanoidRootPart
+    BodyGyro.Parent = root
 
-    Humanoid.PlatformStand = true
+    hum.PlatformStand = true
     Button.Text = "Vuelo: ON"
 end
 
 local function stopFly()
     if not isFlying then return end
     isFlying = false
-
-    print("Deteniendo vuelo...")
-
-    if BodyVelocity then
-        BodyVelocity:Destroy()
-        BodyVelocity = nil
-    end
-    if BodyGyro then
-        BodyGyro:Destroy()
-        BodyGyro = nil
-    end
-
-    Humanoid.PlatformStand = false
-    moveVector = Vector3.new(0, 0, 0)
+    if BodyVelocity then BodyVelocity:Destroy() end
+    if BodyGyro    then BodyGyro:Destroy()    end
+    local char = Player.Character or Player.CharacterAdded:Wait()
+    char:FindFirstChildOfClass("Humanoid").PlatformStand = false
+    moveVector = Vector3.new()
     Button.Text = "Vuelo: OFF"
 end
 
--- Actualizar vuelo cada frame
-local function updateFly()
+-- Actualiza cada frame
+RunService.Heartbeat:Connect(function()
     if isFlying and BodyVelocity and BodyGyro then
         BodyGyro.CFrame = workspace.CurrentCamera.CFrame
         BodyVelocity.Velocity = moveVector * FlySpeed
     end
-end
+end)
 
--- Detectar toque para movimiento
-local function onTouchBegan(input, gameProcessed)
-    if gameProcessed then return end
+-- Toque para dirección
+UserInputService.TouchBegan:Connect(function(input, gp)
+    if gp then return end
     if input.UserInputType == Enum.UserInputType.Touch then
-        local touchPos = input.Position
-        local screenSize = workspace.CurrentCamera.ViewportSize
-        local cam = workspace.CurrentCamera
+        local pos = input.Position
+        local size= workspace.CurrentCamera.ViewportSize
+        local cam = workspace.CurrentCamera.CFrame
+        local dir = Vector3.new()
 
-        local dir = Vector3.new(0, 0, 0)
+        if pos.X < size.X/2 then dir = dir - cam.RightVector else dir = dir + cam.RightVector end
+        if pos.Y < size.Y/2 then dir = dir + cam.LookVector else dir = dir - cam.LookVector end
 
-        if touchPos.X < screenSize.X / 2 then
-            dir = dir - cam.CFrame.RightVector
-        else
-            dir = dir + cam.CFrame.RightVector
-        end
-
-        if touchPos.Y < screenSize.Y / 2 then
-            dir = dir + cam.CFrame.LookVector
-        else
-            dir = dir - cam.CFrame.LookVector
-        end
-
-        if dir.Magnitude > 0 then
-            moveVector = dir.Unit
-        else
-            moveVector = Vector3.new(0, 0, 0)
-        end
+        if dir.Magnitude>0 then moveVector = dir.Unit else moveVector = Vector3.new() end
     end
-end
+end)
 
-local function onTouchEnded(input, gameProcessed)
-    if gameProcessed then return end
-    if input.UserInputType == Enum.UserInputType.Touch then
-        moveVector = Vector3.new(0, 0, 0)
+UserInputService.TouchEnded:Connect(function(input,gp)
+    if gp then return end
+    if input.UserInputType==Enum.UserInputType.Touch then
+        moveVector = Vector3.new()
     end
-end
+end)
 
--- Toggle vuelo al presionar el botón UI
+-- Botón UI toggle
 Button.MouseButton1Click:Connect(function()
-    if isFlying then
-        stopFly()
-    else
-        startFly()
-    end
+    if isFlying then stopFly() else startFly() end
 end)
 
--- También toggle con salto (opcional, coméntalo si no quieres)
+-- Toggle con salto
 UserInputService.JumpRequest:Connect(function()
-    if isFlying then
-        stopFly()
-    else
-        startFly()
-    end
+    if isFlying then stopFly() else startFly() end
 end)
-
-UserInputService.TouchBegan:Connect(onTouchBegan)
-UserInputService.TouchEnded:Connect(onTouchEnded)
-RunService.Heartbeat:Connect(updateFly)
