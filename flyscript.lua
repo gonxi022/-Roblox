@@ -6,6 +6,7 @@ local FlySpeed = 50  -- Ajusta la velocidad de vuelo aquí
 local isFlying = false
 
 local function fly()
+    print("Iniciando vuelo...")
     local BodyVelocity = Instance.new("BodyVelocity")
     BodyVelocity.Velocity = Vector3.new(0, 0, 0)
     BodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
@@ -18,6 +19,7 @@ local function fly()
     local UserInputService = game:GetService("UserInputService")
     local function onTouchBegan(input, gameProcessed)
         if not gameProcessed then
+            print("Toque detectado en la pantalla")
             local touchPos = input.Position
             local screenSize = workspace.CurrentCamera.ViewportSize
             local moveVector = Vector3.new(0, 0, 0)
@@ -35,6 +37,7 @@ local function fly()
             end
 
             BodyVelocity.Velocity = moveVector
+            print("Vector de movimiento: ", moveVector)
         end
     end
 
@@ -42,6 +45,7 @@ local function fly()
 end
 
 local function stopFly()
+    print("Deteniendo vuelo...")
     for _, child in pairs(Character:GetChildren()) do
         if child:IsA("BodyVelocity") or child:IsA("BodyGyro") then
             child:Destroy()
@@ -49,25 +53,16 @@ local function stopFly()
     end
 end
 
--- Crear un menú simple
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0, 200, 0, 50)
-ToggleButton.Position = UDim2.new(0.5, -100, 0.5, -25)
-ToggleButton.Text = "Activar Vuelo"
-ToggleButton.Parent = ScreenGui
-
-local function toggleFly()
-    isFlying = not isFlying
-    if isFlying then
-        fly()
-        ToggleButton.Text = "Desactivar Vuelo"
-    else
-        stopFly()
-        ToggleButton.Text = "Activar Vuelo"
+local function onJumpRequest(input, gameProcessed)
+    if not gameProcessed then
+        isFlying = not isFlying
+        if isFlying then
+            fly()
+        else
+            stopFly()
+        end
     end
 end
 
-ToggleButton.MouseButton1Click:Connect(toggleFly)
+local UserInputService = game:GetService("UserInputService")
+UserInputService.JumpRequest:Connect(onJumpRequest)
