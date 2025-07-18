@@ -1,5 +1,3 @@
--- Advanced Wall Bypass - Atravesar zonas seguras sin ser empujado atrás (Steal a Brainrot) - Android OK
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -10,7 +8,7 @@ local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 local button = nil
 local enabled = false
 local bypassConnection
-local lastPos
+local lastPos = HumanoidRootPart.Position
 
 -- Desactivar colisiones excepto RootPart
 local function setCollision(state)
@@ -21,26 +19,41 @@ local function setCollision(state)
     end
 end
 
--- Activar Wall + Bypass zonas seguras
+local function forcePosition(newPos)
+    -- Lerp para suavizar la posición y evitar detección brusca
+    local currentCFrame = HumanoidRootPart.CFrame
+    local targetCFrame = CFrame.new(newPos)
+    HumanoidRootPart.CFrame = currentCFrame:Lerp(targetCFrame, 0.5)
+end
+
 local function toggleBypass()
     enabled = not enabled
 
     if enabled then
-        Humanoid.PlatformStand = true -- desactiva movimiento físico estándar
-
+        Humanoid.PlatformStand = true
+        Humanoid:ChangeState(Enum.HumanoidStateType.Physics) -- Mantiene control local
+        
         bypassConnection = RunService.Stepped:Connect(function()
             pcall(function()
                 setCollision(true)
+                -- Desactivar colisiones en todas las partes excepto rootpart
                 for _, part in Character:GetDescendants() do
                     if part:IsA("BasePart") and part ~= HumanoidRootPart then
                         part.CanCollide = false
                     end
                 end
-                -- Forzar posición estable si el servidor intenta empujarte
-                if lastPos and (HumanoidRootPart.Position - lastPos).magnitude > 5 then
-                    HumanoidRootPart.CFrame = CFrame.new(lastPos)
+
+                local currentPos = HumanoidRootPart.Position
+                local distanceMoved = (currentPos - lastPos).Magnitude
+
+                if distanceMoved > 3 then
+                    -- Detectamos que el servidor te empujó o reposicionó
+                    -- Forzamos la posición suavemente para evitar salto brusco
+                    forcePosition(lastPos)
+                else
+                    -- Seguimos guardando posición estable
+                    lastPos = currentPos
                 end
-                lastPos = HumanoidRootPart.Position
             end)
         end)
 
@@ -48,6 +61,7 @@ local function toggleBypass()
     else
         if bypassConnection then bypassConnection:Disconnect() end
         Humanoid.PlatformStand = false
+        Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
         setCollision(false)
         button.Text = "🧱 Atravesar ON"
     end
@@ -55,7 +69,10 @@ end
 
 -- Crear botón táctil
 local function createButton()
-    local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+    local gui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("SafeZoneBypassUI")
+    if gui then gui:Destroy() end
+
+    gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
     gui.Name = "SafeZoneBypassUI"
     gui.ResetOnSpawn = false
 
