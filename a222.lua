@@ -1,33 +1,49 @@
--- Ultra OP Farm +600 Steps - Legends of Speed (Android Ready)
-
+-- Roblox Legends of Speed - Auto Farm Orbes y Pasos (Android Ready)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local flags = { farmSteps = false }
+local flags = { farmAll = false }
 
 local function getChar()
     return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 end
 
-local function tpToOrb(orb)
+local function tpTo(obj)
     local char = getChar()
     if not char then return end
     local HRP = char:FindFirstChild("HumanoidRootPart")
-    if HRP and orb and orb:IsA("BasePart") then
-        HRP.CFrame = orb.CFrame + Vector3.new(0, 3, 0)
+    if HRP and obj and obj:IsA("BasePart") then
+        HRP.CFrame = obj.CFrame + Vector3.new(0, 3, 0)
     end
+end
+
+local function isOrbOrStep(obj)
+    -- Incluye orbes y pasos de cualquier cantidad
+    local orbNames = {
+        "Step", "Gem", "Orb", "Crystal", "Diamond", "Reward"
+    }
+    for _, word in ipairs(orbNames) do
+        if obj.Name:lower():find(word:lower()) then
+            return true
+        end
+    end
+    -- Detectar nombres con "+" y números (ej: "+600 Steps")
+    if obj.Name:match("%+%d+") then
+        return true
+    end
+    return false
 end
 
 spawn(function()
     while true do
         task.wait(0.1)
-        if flags.farmSteps then
+        if flags.farmAll then
             local char = getChar()
             local HRP = char:FindFirstChild("HumanoidRootPart")
             if HRP then
-                for _, orb in pairs(workspace:GetDescendants()) do
-                    if orb:IsA("BasePart") and orb.Name:match("%+600") then
-                        tpToOrb(orb)
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA("BasePart") and isOrbOrStep(obj) then
+                        tpTo(obj)
                         task.wait(0.12)
                     end
                 end
@@ -38,24 +54,24 @@ spawn(function()
     end
 end)
 
--- Menú táctil simple para Android
-
+-- Menú táctil para Android
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local gui = Instance.new("ScreenGui", PlayerGui)
 gui.Name = "UltraFarmMenu"
 gui.ResetOnSpawn = false
 
 local btn = Instance.new("TextButton", gui)
-btn.Size = UDim2.new(0, 100, 0, 50)
-btn.Position = UDim2.new(0, 20, 0, 20)
-btn.BackgroundColor3 = Color3.new(0, 0, 0)
+btn.Size = UDim2.new(0, 200, 0, 80)
+btn.Position = UDim2.new(0, 30, 0, 30)
+btn.BackgroundColor3 = Color3.fromRGB(0,130,255)
 btn.TextColor3 = Color3.new(1, 1, 1)
-btn.Text = "Farm +600 OFF"
+btn.Text = "Auto Farm OFF"
 btn.TextScaled = true
+btn.Font = Enum.Font.SourceSansBold
 
 btn.MouseButton1Click:Connect(function()
-    flags.farmSteps = not flags.farmSteps
-    btn.Text = "Farm +600 " .. (flags.farmSteps and "ON" or "OFF")
+    flags.farmAll = not flags.farmAll
+    btn.Text = "Auto Farm " .. (flags.farmAll and "ON" or "OFF")
 end)
 
-print("Script ultra OP listo, toca el botón para activar el farm +600")
+print("¡Script auto farm listo! Toca el botón para activar o desactivar el farm de TODOS los orbes y pasos.")
