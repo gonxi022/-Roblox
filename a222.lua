@@ -2,7 +2,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 
--- Lista de mundos conocidos (puedes agregar/quitar)
+-- Edita esta tabla para añadir más mundos con sus posiciones
 local worlds = {
     {name="City", pos=Vector3.new(104, 20, -101)},
     {name="Desert", pos=Vector3.new(1301, 20, -1739)},
@@ -48,7 +48,7 @@ spawn(function()
         task.wait(0.06)
         if farming then
             local char = getChar()
-            local HRP = char:FindFirstChild("HumanoidRootPart")
+            local HRP = char and char:FindFirstChild("HumanoidRootPart")
             if HRP then
                 for _, obj in ipairs(Workspace:GetDescendants()) do
                     if obj:IsA("BasePart") and isFarmable(obj) then
@@ -65,55 +65,84 @@ end)
 
 -- GUI
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-local gui = Instance.new("ScreenGui", PlayerGui)
-gui.Name = "AutoFarmGui"
+local gui = Instance.new("ScreenGui")
+gui.Name = "ModMenu"
 gui.ResetOnSpawn = false
+gui.Parent = PlayerGui
+
+-- Minimizador
+local minimizado = false
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 50, 0, 50)
+minimizeBtn.Position = UDim2.new(0, 10, 0, 10)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(30,130,255)
+minimizeBtn.Text = "-"
+minimizeBtn.TextScaled = true
+minimizeBtn.Font = Enum.Font.SourceSansBold
+minimizeBtn.TextColor3 = Color3.new(1,1,1)
+minimizeBtn.Parent = gui
+
+-- Marco principal del menú
+local menuFrame = Instance.new("Frame")
+menuFrame.Size = UDim2.new(0, 280, 0, 410)
+menuFrame.Position = UDim2.new(0, 70, 0, 10)
+menuFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+menuFrame.BorderSizePixel = 2
+menuFrame.Parent = gui
+
+-- Título
+local title = Instance.new("TextLabel", menuFrame)
+title.Size = UDim2.new(1, 0, 0, 46)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundColor3 = Color3.fromRGB(35,35,70)
+title.TextColor3 = Color3.fromRGB(255,215,0)
+title.Font = Enum.Font.SourceSansBold
+title.TextScaled = true
+title.Text = "MOD MENU"
+title.BorderSizePixel = 0
 
 -- Botón AutoFarm
-local farmBtn = Instance.new("TextButton", gui)
-farmBtn.Size = UDim2.new(0, 220, 0, 80)
-farmBtn.Position = UDim2.new(0, 30, 0, 30)
-farmBtn.BackgroundColor3 = Color3.fromRGB(30,130,255)
+local farmBtn = Instance.new("TextButton", menuFrame)
+farmBtn.Size = UDim2.new(1, -24, 0, 60)
+farmBtn.Position = UDim2.new(0, 12, 0, 60)
+farmBtn.BackgroundColor3 = Color3.fromRGB(30,180,90)
 farmBtn.TextColor3 = Color3.new(1, 1, 1)
 farmBtn.Text = "Auto Farm OFF"
 farmBtn.TextScaled = true
 farmBtn.Font = Enum.Font.SourceSansBold
+farmBtn.BorderSizePixel = 2
 
 farmBtn.MouseButton1Click:Connect(function()
     farming = not farming
     farmBtn.Text = "Auto Farm " .. (farming and "ON" or "OFF")
+    farmBtn.BackgroundColor3 = farming and Color3.fromRGB(0,200,80) or Color3.fromRGB(30,180,90)
 end)
 
+-- Etiqueta de mundos
+local tpLabel = Instance.new("TextLabel", menuFrame)
+tpLabel.Size = UDim2.new(1, -24, 0, 36)
+tpLabel.Position = UDim2.new(0, 12, 0, 132)
+tpLabel.BackgroundColor3 = Color3.fromRGB(50,50,90)
+tpLabel.TextColor3 = Color3.new(1,1,0.6)
+tpLabel.Font = Enum.Font.SourceSansBold
+tpLabel.TextScaled = true
+tpLabel.Text = "TP a Mundos"
+tpLabel.BorderSizePixel = 0
+
 -- Marco del menú (scrolling frame)
-local menuFrame = Instance.new("Frame", gui)
-menuFrame.Size = UDim2.new(0, 250, 0, 320)
-menuFrame.Position = UDim2.new(0, 30, 0, 130)
-menuFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-menuFrame.BorderSizePixel = 2
-menuFrame.Visible = true
-
-local title = Instance.new("TextLabel", menuFrame)
-title.Size = UDim2.new(1, 0, 0, 40)
-title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundColor3 = Color3.fromRGB(35,35,35)
-title.TextColor3 = Color3.new(1, 1, 0.1)
-title.Font = Enum.Font.SourceSansBold
-title.TextScaled = true
-title.Text = "TP a Mundo"
-title.BorderSizePixel = 0
-
 local scroll = Instance.new("ScrollingFrame", menuFrame)
-scroll.Size = UDim2.new(1, 0, 1, -45)
-scroll.Position = UDim2.new(0, 0, 0, 45)
-scroll.CanvasSize = UDim2.new(0,0,0, #worlds*60)
+scroll.Size = UDim2.new(1, -24, 0, 230)
+scroll.Position = UDim2.new(0, 12, 0, 176)
+scroll.CanvasSize = UDim2.new(0,0,0, #worlds*54)
 scroll.ScrollBarThickness = 8
-scroll.BackgroundColor3 = Color3.fromRGB(30,30,30)
+scroll.BackgroundColor3 = Color3.fromRGB(30,30,50)
 scroll.BorderSizePixel = 0
 
 for i, world in ipairs(worlds) do
     local btn = Instance.new("TextButton", scroll)
-    btn.Size = UDim2.new(1, -12, 0, 54)
-    btn.Position = UDim2.new(0, 6, 0, (i-1)*60)
+    btn.Size = UDim2.new(1, -12, 0, 49)
+    btn.Position = UDim2.new(0, 6, 0, (i-1)*54)
     btn.BackgroundColor3 = Color3.fromRGB(65,65,120)
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Text = "Ir a: " .. world.name
@@ -129,4 +158,11 @@ for i, world in ipairs(worlds) do
     end)
 end
 
-print("Auto-farm y TP por menú listos. ¡Disfruta!")
+-- Minimizar/Restaurar menú
+minimizeBtn.MouseButton1Click:Connect(function()
+    minimizado = not minimizado
+    menuFrame.Visible = not minimizado
+    minimizeBtn.Text = minimizado and "+" or "-"
+end)
+
+print("Mod Menu listo: AutoFarm, TP y minimizar.")
